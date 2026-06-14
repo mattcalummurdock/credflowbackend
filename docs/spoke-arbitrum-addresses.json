@@ -1,0 +1,16 @@
+{
+  "chain": "arbitrum",
+  "eid": 40231,
+  "endpointV2": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+  "oapp": "0xebE2fDe0781ea6f57c1F5EDd775Fe8D41b9C6830",
+  "sbt": "0x0000000000000000000000000000000000000000",
+  "weth": "0x1dF462e2712496373A347f8ad10802a5E95f053D",
+  "usdc": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+  "oracle": "0x08f18d1257C8665fe6DAD689B8E1Acd9120C374b",
+  "pool": "0x60BD7ca901f6F23ac0A4D640B3DEeCEDc9135483",
+  "lending": "0xd834854Eb7d064EBb74cED270eb3431f7e816728",
+  "wethPriceFeed": "0xb0cc4Fbe99f7426b5b345008944a23F0db54Bdd6",
+  "mainnetChainlinkFeed": "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612",
+  "oracleFeedSource": "ChainlinkMirrorFeed",
+  "chainId": 421614
+}

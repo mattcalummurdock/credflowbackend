@@ -1,0 +1,61 @@
+# Secrets
+.env
+.env.*
+!.env.example
+docker/env.*.example
+
+# Node / frontend (not needed for ML + agents image)
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/.vercel/
+
+# Local Python envs
+credflow-env/
+.venv/
+venv/
+docs/venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Hardhat / Solidity build artifacts
+artifacts/
+cache/
+typechain/
+typechain-types/
+coverage/
+.hardhat/
+.openzeppelin/
+foundry/cache/
+foundry/out/
+
+# Logs and local runtime state
+logs/
+.reclaim-sessions.json
+*.log
+
+# OS / IDE
+.git/
+.gitignore
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Misc
+dist/
+build/
+tmp/
+temp/
+pending/
