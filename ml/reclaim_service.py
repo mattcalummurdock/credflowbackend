@@ -270,6 +270,17 @@ def clear_sessions_for_wallet(wallet_address: str) -> int:
     return removed
 
 
+def clear_pending_sessions_for_wallet(wallet_address: str) -> int:
+    """Remove abandoned pending sessions; keep verified sessions for reuse."""
+    wallet = wallet_address.lower()
+    removed = 0
+    for sid, session in list(_sessions.items()):
+        if session.wallet_address == wallet and session.status == "pending":
+            _sessions.pop(sid, None)
+            removed += 1
+    return removed
+
+
 def process_proof_callback(raw_body: str, wallet_hint: str | None = None) -> ReclaimSession:
     """Verify Reclaim proof and attach to matching pending session."""
     _cleanup_expired()
