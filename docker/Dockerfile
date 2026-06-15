@@ -24,9 +24,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# torch-geometric needs a compiler; keep the runtime image slim after install.
+# torch-geometric needs a compiler; Node.js is required for Reclaim bank proofs.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
+    && apt-get install -y --no-install-recommends build-essential nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 COPY docker/requirements-backend.txt /tmp/requirements-backend.txt
@@ -49,6 +49,11 @@ COPY docs/addresses.json docs/addresses.json
 COPY docs/spoke-arbitrum-addresses.json docs/spoke-arbitrum-addresses.json
 COPY docs/spoke-base-addresses.json docs/spoke-base-addresses.json
 COPY docs/abis/ docs/abis/
+
+# Reclaim bank balance (ml/reclaim_service.py → scripts/reclaim_helper.js)
+COPY docker/package-reclaim.json package.json
+COPY scripts/reclaim_helper.js scripts/reclaim_helper.js
+RUN npm install --omit=dev && npm cache clean --force
 
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
