@@ -568,8 +568,7 @@ async def startup_log_config():
         logger.info("Postman step 1: POST /score {\"wallet_address\":\"0x...\",\"require_reclaim\":true}")
 
 
-@app.get("/health")
-async def health():
+def _health_payload() -> dict:
     from pathlib import Path
 
     from ml.constants import EXPLAINER_PATH, FEATURE_COLUMNS, MODEL_PATH, SYBIL_MODEL_PATH
@@ -583,6 +582,13 @@ async def health():
         "feature_count": len(FEATURE_COLUMNS),
         "reclaim_enabled": reclaim_enabled(),
     }
+
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health(request: Request):
+    if request.method == "HEAD":
+        return Response(status_code=200)
+    return _health_payload()
 
 
 @app.post("/reclaim/reset")
