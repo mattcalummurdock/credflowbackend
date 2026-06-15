@@ -135,9 +135,10 @@ def _parse_helper_stdout(stdout: str) -> dict:
 
 
 def _run_node_helper(args: list[str], stdin: str | None = None) -> dict:
+    node_bin = os.environ.get("NODE_BIN", "node")
     env = {**os.environ}
     proc = subprocess.run(
-        ["node", str(RECLAIM_HELPER), *args],
+        [node_bin, str(RECLAIM_HELPER), *args],
         input=stdin,
         capture_output=True,
         text=True,
