@@ -1,0 +1,7 @@
+{
+  "name": "credflow-reclaim-helper",
+  "private": true,
+  "dependencies": {
+    "@reclaimprotocol/js-sdk": "^5.5.0"
+  }
+}
