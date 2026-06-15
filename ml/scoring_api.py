@@ -114,8 +114,8 @@ def _score_sync(
     _configure_indexer_loggers()
 
     from ml.reclaim_service import (
+        clear_pending_sessions_for_wallet,
         create_session,
-        get_pending_session_for_wallet,
         get_session,
         reclaim_enabled,
         session_to_payload,
@@ -152,22 +152,15 @@ def _score_sync(
                         "No verified Reclaim session for this wallet — complete bank login first"
                     )
             else:
-                pending = get_pending_session_for_wallet(wallet_address)
-                if pending:
+                # Portal URLs are single-use — always start fresh unless reclaim_session_id
+                # was passed explicitly (e.g. after poll sees verified).
+                removed = clear_pending_sessions_for_wallet(wallet_address)
+                if removed:
                     logger.info(
-                        "Reclaim resuming pending session=%s wallet=%s",
-                        pending.session_id,
+                        "Reclaim cleared %s abandoned pending session(s) wallet=%s",
+                        removed,
                         wallet_address,
                     )
-                    return _awaiting({
-                        "status": "awaiting_reclaim",
-                        "reclaim_url": pending.request_url,
-                        "reclaim_status_url": pending.status_url,
-                        "verification_mode": pending.verification_mode,
-                        "reclaim_session_id": pending.session_id,
-                        "wallet_address": wallet_address,
-                        "message": "Complete bank verification via Reclaim portal",
-                    })
                 callback = _reclaim_callback_url()
                 session = create_session(wallet_address, callback)
                 logger.info("=" * 60)
@@ -591,13 +584,26 @@ async def health(request: Request):
     return _health_payload()
 
 
-@app.post("/reclaim/reset")
-async def reclaim_reset(req: ScoreRequest):
-    """Clear stored Reclaim sessions for a wallet (used when resetting Supabase score cache)."""
-    from ml.reclaim_service import clear_sessions_for_wallet
+class ReclaimResetRequest(BaseModel):
+    wallet_address: str = Field(..., min_length=42, max_length=42)
+    pending_only: bool = False
 
-    removed = clear_sessions_for_wallet(req.wallet_address)
-    return {"ok": True, "wallet_address": req.wallet_address.lower(), "sessions_removed": removed}
+
+@app.post("/reclaim/reset")
+async def reclaim_reset(req: ReclaimResetRequest):
+    """Clear in-memory Reclaim sessions for a wallet."""
+    from ml.reclaim_service import clear_pending_sessions_for_wallet, clear_sessions_for_wallet
+
+    if req.pending_only:
+        removed = clear_pending_sessions_for_wallet(req.wallet_address)
+    else:
+        removed = clear_sessions_for_wallet(req.wallet_address)
+    return {
+        "ok": True,
+        "wallet_address": req.wallet_address.lower(),
+        "sessions_removed": removed,
+        "pending_only": req.pending_only,
+    }
 
 
 @app.get("/reclaim/session/{session_id}")
