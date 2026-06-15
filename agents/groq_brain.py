@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Literal
+import re
+from typing import Any, Literal
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 load_dotenv()
 
@@ -22,12 +23,30 @@ class UnderwritingVerdict(BaseModel):
     reasoning: str = ""
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
 
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _coerce_confidence(cls, value: Any) -> Any:
+        if isinstance(value, str) and value.strip():
+            return float(value.strip())
+        return value
+
 
 class MonitorVerdict(BaseModel):
     escalate: bool = False
     severity: Literal["low", "medium", "high", "critical"] = "low"
     reasoning: str = ""
     flag_liquidation: bool = False
+
+    @field_validator("escalate", "flag_liquidation", mode="before")
+    @classmethod
+    def _coerce_bool(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in ("true", "1", "yes"):
+                return True
+            if lowered in ("false", "0", "no"):
+                return False
+        return value
 
 
 class LiquidationVerdict(BaseModel):
@@ -40,6 +59,13 @@ class RateVerdict(BaseModel):
     adjust_bps: int = Field(default=0, ge=-50, le=50)
     direction: Literal["increase", "decrease", "hold"] = "hold"
     reasoning: str = ""
+
+    @field_validator("adjust_bps", mode="before")
+    @classmethod
+    def _coerce_adjust_bps(cls, value: Any) -> Any:
+        if isinstance(value, str) and value.strip():
+            return int(value.strip())
+        return value
 
 
 class SyncVerdict(BaseModel):
@@ -62,6 +88,28 @@ def _get_llm():
     )
 
 
+def _parse_failed_generation(exc: Exception, schema: type[BaseModel]) -> BaseModel | None:
+    """Recover when Groq tool validation fails but the model returned parseable JSON."""
+    text = str(exc)
+    if "failed_generation" not in text:
+        return None
+    match = re.search(r"failed_generation['\"]:\s*'([^']+)'", text)
+    if not match:
+        match = re.search(r'failed_generation["\']:\s*"([^"]+)"', text)
+    if not match:
+        return None
+    raw = match.group(1)
+    if "<function=" in raw:
+        raw = raw.split(">", 1)[-1]
+    if raw.endswith("</function>"):
+        raw = raw[: -len("</function>")]
+    try:
+        payload = json.loads(raw)
+        return schema.model_validate(payload)
+    except Exception:
+        return None
+
+
 def _invoke_json(prompt: str, schema: type[BaseModel], fallback: BaseModel) -> BaseModel:
     try:
         llm = _get_llm()
@@ -70,6 +118,10 @@ def _invoke_json(prompt: str, schema: type[BaseModel], fallback: BaseModel) -> B
         logger.info("Groq verdict: %s", result.model_dump())
         return result
     except Exception as exc:
+        recovered = _parse_failed_generation(exc, schema)
+        if recovered is not None:
+            logger.info("Groq verdict (recovered from failed tool call): %s", recovered.model_dump())
+            return recovered
         logger.warning("Groq parse failure, using conservative fallback: %s", exc)
         return fallback
 
@@ -150,7 +202,8 @@ def review_rate_adjustment(
 Utilization bps: {utilization_bps}
 Current base rate bps: {current_base_rate_bps}
 Total deposited: {total_deposited}, total borrowed: {total_borrowed}
-Hard rules: util>80% increase, util<50% decrease, clamp base rate [200,2000], adjust within ±50 bps."""
+Hard rules: util>80% increase, util<50% decrease, clamp base rate [200,2000], adjust within ±50 bps.
+Return adjust_bps as a JSON integer (e.g. 0 or 25), never a string."""
     direction = "hold"
     adjust = 0
     if utilization_bps > 8000:
